@@ -1,35 +1,34 @@
-"""fetches tweets matching a set of keywords using Twitter Search API, cleans the text and and stores it in MongoDB."""
+import sched
+import time
+import string
 
-import twitter, sched, time, string
-from twitterkeys import *
+import twitter
 from pymongo import MongoClient
 
-"""initialize Mongo Client and Database"""
+from twitterkeys import *
+
+# Initialize Mongo Database.
 client = MongoClient()
 db = client.ThisOrThatSearch
 
-"""initialize twitter API"""
-api = twitter.Api(consumer_key=consumer_key,
-consumer_secret=consumer_secret,
-access_token_key=access_token,
-access_token_secret=access_secret)
+# Initialize Twitter API with credentials.
+api = twitter.Api(
+	consumer_key=consumer_key,
+	consumer_secret=consumer_secret,
+	access_token_key=access_key,
+	access_token_secret=access_secret
+	)
 
-since_id = "563432865505882112" #Randomly taken from webserver
+since_id = "563432865505882112" # Randomly taken from Twitter website
 
-"""initialize scheduler"""
+# Initialize scheduler.
 s = sched.scheduler(time.time, time.sleep)
 
-"""get 3 keywords"""
-#mainword = raw_input("Enter the keyword you're checking: ")
-#thisword = raw_input("Enter the first keyword comparison: ")
-#thatword = raw_input("Enter the second keyword comparison: ")
-
-#keywords = [mainword, thisword, thatword]
-
+# Get keywords.
 keywords = ["nike", "reebok", "adidas"]
 
 def cleantweet(tweet):
-	"""strips unicode and punctuation from tweet text"""
+	"""Strip unicode and punctuation from tweet text."""
 	asciitweet = tweet.encode(encoding="ascii", errors="ignore")
 	cleanedtweet = ""
 	for letter in asciitweet:
@@ -38,21 +37,30 @@ def cleantweet(tweet):
 	return cleanedtweet
 	
 def main():
-	"""searches twitter for each keyword and stores the cleaned tweet in MongoDB. Keeps since_id to avoid duplicate tweets."""
+	"""
+	Search Twitter for each keyword and store the cleaned tweet in MongoDB.
+	Recycle tweet id_str as since_id to avoid duplicate tweets.
+	"""
 	global since_id
 	for keyword in keywords:
-		tweetsearch = api.GetSearch(term=keyword, lang="en", count=100, since_id=since_id)
+		tweetsearch = api.GetSearch(
+			term=keyword, lang="en", count=100, since_id=since_id)
 		for tweet in tweetsearch:
 		    if since_id < tweet.id_str:
 		        since_id = tweet.id_str
-		    db.cleantext.insert({"keyword": keyword, "text": cleantweet(tweet.text)})
+		    db.cleantext.insert(
+		    	{"keyword": keyword, "text": cleantweet(tweet.text)})
 
-def scheduler():
-	"""Schedules searches to fit Twitter API rate delays. 180 searches per 15 minutes, and main() executes 1 search per keyword"""
+def schedule():
+	"""
+	Schedule searches to fit Twitter API rate delays. 
+	180 searches per 15 minutes, and main() executes 1 search per keyword.
+	There must be 180 or less keywords.
+	"""
 	delaypercycle = 1/(180.0/15/60)*len(keywords)+1
 	while True:
 	    s.enter(delaypercycle, 1, main,())
 	    s.run()
 
 if __name__ == "__main__":
-	scheduler()
+	schedule()

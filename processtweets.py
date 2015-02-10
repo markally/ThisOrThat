@@ -1,31 +1,30 @@
-import pymongo
 from pymongo import MongoClient
 
-"""initialize mongoDB connection"""
+# Initialize Mongo DB connection.
 db = MongoClient().ThisOrThatSearch
 
-"""set keywords to analyze"""
+# Set keywords to analyze.
 keywords = ["nike", "reebok", "adidas"]
 
-def incrementcount(word):
-    if wordcounts.get(word):
-        wordcounts[word] += 1
-    else:
-        wordcounts[word] = 1
-
 def processtweets(keyword):
-	"queries MongoDB for all tweets tied to keyword, returns a dictionary of {word: count} pairs"
-	global wordcounts
+	"""
+	Query MongoDB for all tweets tied to keyword.
+	Return a dictionary of {word: count} pairs.
+	"""
 	wordcounts = {}
-	for tweet in db.cleantext.find(spec={"keyword": keyword}, fields={"_id": False, "text": True}):
+	for tweet in db.cleantext.find(
+		spec={"keyword": keyword}, 
+		fields={"_id": False, "text": True}
+		):
 		tweetwords = tweet["text"].split()
 		for word in tweetwords:
-			incrementcount(word)
+			wordcounts[word] = wordcounts.get(word, 0) + 1
 	return wordcounts
 
 def main():
 	for keyword in keywords:
-		db.wordcounts.insert({"keyword": keyword, "wordcounts": processtweets(keyword)})
+		db.wordcounts.insert(
+			{"keyword": keyword, "wordcounts": processtweets(keyword)})
 
 if __name__ == "__main__":
 	main()
