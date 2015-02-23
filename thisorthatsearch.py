@@ -36,31 +36,34 @@ def cleantweet(tweet):
 			cleanedtweet += letter
 	return cleanedtweet
 	
-def main():
+def tweetsearch(keyword):
 	"""
-	Search Twitter for each keyword and store the cleaned tweet in MongoDB.
+	Search Twitter for a keyword and store the cleaned tweet in MongoDB.
 	Recycle tweet id_str as since_id to avoid duplicate tweets.
 	"""
 	global since_id
-	for keyword in keywords:
-		tweetsearch = api.GetSearch(
-			term=keyword, lang="en", count=100, since_id=since_id)
-		for tweet in tweetsearch:
-		    if since_id < tweet.id_str:
-		        since_id = tweet.id_str
-		    db.cleantext.insert(
-		    	{"keyword": keyword, "text": cleantweet(tweet.text)})
+	search = api.GetSearch(
+	    term=keyword, lang="en", count=100, since_id=since_id)
+	for tweet in search:
+	    if since_id < tweet.id_str:
+	        since_id = tweet.id_str
+	    db.cleantext.insert(
+	        {"keyword": keyword, "text": cleantweet(tweet.text)})
 
-def schedule():
+def scheduler(keywords):
 	"""
-	Schedule searches to fit Twitter API rate delays. 
-	180 searches per 15 minutes, and main() executes 1 search per keyword.
-	There must be 180 or less keywords.
+	Calls tweetsearch for each keyword.
+	Schedules searches to fit Twitter API rate delays. 
+	180 searches per 15 minutes.
 	"""
-	delaypercycle = 1/(180.0/15/60)*len(keywords)+1
+	keylist = iter(keywords)
+	delaypercycle = 1/(180.0/15/60)
 	while True:
-	    s.enter(delaypercycle, 1, main,())
-	    s.run()
+		try:
+			s.enter(delaypercycle, 1, tweetsearch,(keylist.next()))
+	        s.run()
+	    except StopIteration:
+	    	keylist = iter(keywords)
 
 if __name__ == "__main__":
-	schedule()
+	scheduler(keywords)
